@@ -1,0 +1,135 @@
+## V5: full_combo — 全面增强（纯 OT，无 KL）
+## Changes vs baseline: ot_epsilon 0.1→0.07, ot_num_iters 20→30, ot_common_dim 256→512,
+##   ot_ramp_steps 5000→12000, num_*_query_token 1→4, init_lr 5e-5→8e-5, warmup_steps 5000→8000
+
+model:
+  arch: affectgpt
+  model_type: pretrain_vicuna
+
+  frozen_video_proj: False
+  frozen_video_Qformer: False
+  frozen_audio_Qformer: False
+  frozen_audio_proj: False
+  frozen_multi_Qformer: False
+  frozen_multi_llama_proj: False
+  frozen_llm: False
+
+  multi_fusion_type: attention
+  video_fusion_type: attention
+  audio_fusion_type: attention
+  image_fusion_type: mean
+
+  ckpt:   ""
+  ckpt_2: ""
+
+  llama_model: "Qwen3_0.6B"
+  acoustic_encoder: "HUBERT_BASE"
+  visual_encoder: "CLIP_VIT_BASE"
+
+  teacher:
+    llama_model: "Qwen3"
+    visual_encoder: "CLIP_VIT_LARGE"
+    acoustic_encoder: "HUBERT_LARGE"
+    ckpt: "/users/2780718z/sharedscratch/Year_3/OT/AffectGPT-master/AffectGPT/output/qwen3_emercoarse_highlevelfilter4_outputhybird_bestsetup_bestfusion_lz/qwen3_emercoarse_highlevelfilter4_outputhybird_bestsetup_bestfusion_lz_20260209171/checkpoint_000060_loss_0.609.pth"
+
+    ot_weight: 1.0
+    ot_epsilon: 0.07           # CHANGED: 0.1 → 0.07 (sharper transport)
+    ot_common_dim: 512         # CHANGED: 256 → 512 (richer projection)
+    ot_num_iters: 30           # CHANGED: 20 → 30 (match lower epsilon)
+    ot_ramp_steps: 12000       # CHANGED: 5000 → 12000
+
+    kl_weight: 0.0             # NO KL (OT+KL experimentally shown to hurt)
+    kl_temperature: 2.0
+
+  # CHANGED: all query tokens 1 → 4
+  num_audio_query_token: 4
+  num_video_query_token: 4
+  num_multi_query_token: 4
+  num_image_query_token: 4
+
+  max_length: 1024
+
+  vis_processor:
+    train:
+      name: "alpro_video_train"
+      n_frms: 8
+      image_size: 224
+  text_processor:
+    train:
+      name: "blip_caption"
+  img_processor:
+    train:
+      name: "blip2_image_train"
+      image_size: 224
+
+
+datasets:
+
+  mercaptionplus:
+    data_type: video
+    face_or_frame: 'multiface_audio_face_text'
+    label_type: 'hybird'
+
+
+run:
+
+  task: video_text_pretrain
+
+  lr_sched: "linear_warmup_cosine_lr"
+  init_lr: 8e-5               # CHANGED: 5e-5 → 8e-5
+  min_lr: 8e-6                # CHANGED: 5e-6 → 8e-6
+  warmup_lr: 8e-7             # CHANGED: 5e-7 → 8e-7
+  weight_decay: 0.01
+
+  max_epoch: 60
+  iters_per_epoch: 5000
+  warmup_steps: 8000          # CHANGED: 5000 → 8000
+
+  batch_size_train: 3
+  batch_size_eval:  3
+  accum_grad_iters: 8
+
+  seed: 42
+  num_workers: 4
+
+  amp: True
+  resume_ckpt_path: null
+
+  evaluate: False
+  train_splits: ["train"]
+
+  device: "cuda"
+  world_size: 1
+  dist_url: "env://"
+  distributed: False
+
+  output_dir: "output_qwen3_0.6B_wclip_OT_v5_full_combo"
+
+
+inference:
+
+  task: video_text_pretrain
+
+  vis_processor:
+    train:
+      name: "alpro_video_eval"
+      n_frms: 8
+      image_size: 224
+  text_processor:
+    train:
+      name: "blip_caption"
+  img_processor:
+    train:
+      name: "blip2_image_eval"
+      image_size: 224
+
+  face_or_frame: 'xxx'
+
+  base_root: 'output_qwen3_0.6B_wclip_OT_v5_full_combo/results'
+
+  ckpt_root: xxx
+  ckpt_name: xxx
+  test_epoch: xxx
+  test_epochs: xxx-xxx
+  skip_epoch: 1
+  gpu: 0

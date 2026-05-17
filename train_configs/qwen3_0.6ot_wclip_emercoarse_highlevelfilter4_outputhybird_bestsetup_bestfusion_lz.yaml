@@ -1,0 +1,142 @@
+## w Pre-fusion + Attention + OT Distillation + Lightweight Encoders (wclip)
+
+model:
+  arch: affectgpt
+  model_type: pretrain_vicuna
+
+  # Audio Q-Former and Video Q-Former
+  frozen_video_proj: False
+  frozen_video_Qformer: False
+  frozen_audio_Qformer: False
+  frozen_audio_proj: False
+  frozen_multi_Qformer: False
+  frozen_multi_llama_proj: False
+  frozen_llm: False
+
+  multi_fusion_type: attention
+  video_fusion_type: attention
+  audio_fusion_type: attention
+  image_fusion_type: mean
+
+  # AffectGPT
+  ckpt:   ""
+  ckpt_2: ""
+
+  # Student model: Qwen3-0.6B + lightweight encoders
+  llama_model: "Qwen3_0.6B"
+  acoustic_encoder: "HUBERT_BASE"    # chinese-hubert-base (hidden_size=768)
+  visual_encoder: "CLIP_VIT_BASE"    # clip-vit-base-patch16 (projection_dim=512)
+
+  # ====== Teacher Model for OT Distillation ======
+  teacher:
+    llama_model: "Qwen3"                    # Teacher LLM: Qwen3-8B (hidden=4096)
+    visual_encoder: "CLIP_VIT_LARGE"        # Teacher visual: clip-vit-large (proj=768)
+    acoustic_encoder: "HUBERT_LARGE"        # Teacher audio: hubert-large (hidden=1024)
+    ckpt: "/users/2780718z/sharedscratch/Year_3/OT/AffectGPT-master/AffectGPT/output/qwen3_emercoarse_highlevelfilter4_outputhybird_bestsetup_bestfusion_lz/qwen3_emercoarse_highlevelfilter4_outputhybird_bestsetup_bestfusion_lz_20260209171/checkpoint_000060_loss_0.609.pth"
+    
+    # --- OT parameters ---
+    ot_weight: 1.0          # hidden-state OT loss weight (ramps from 0 to this value)
+    ot_epsilon: 0.1         # Sinkhorn entropic regularization (matched to cosine cost [0,2])
+    ot_common_dim: 256      # projection dimension for OT alignment
+    ot_num_iters: 20        # Sinkhorn iterations (20 is typically sufficient)
+    ot_ramp_steps: 5000     # linear ramp-up steps for OT weight
+    # NOTE: teacher_proj is FROZEN (orthogonal init) to prevent shortcut optimization
+    # NOTE: OT mask uses labels != IGNORE_INDEX (answer tokens only, not prompts)
+    # NOTE: cost function is cosine distance [0,2], not squared L2
+    
+    # --- Optional KL (set > 0 to enable hybrid OT+KL) ---
+    kl_weight: 0.0          # set to e.g. 0.3 for OT+KL hybrid
+    kl_temperature: 2.0
+
+  num_audio_query_token: 1
+  num_video_query_token: 1
+  num_multi_query_token: 1
+  num_image_query_token: 1
+
+  max_length: 1024
+
+  vis_processor:
+    train:
+      name: "alpro_video_train"
+      n_frms: 8
+      image_size: 224
+  text_processor:
+    train:
+      name: "blip_caption"
+  img_processor:
+    train:
+      name: "blip2_image_train"
+      image_size: 224
+
+
+datasets:
+
+  mercaptionplus:
+    data_type: video
+    face_or_frame: 'multiface_audio_face_text'
+    label_type: 'hybird'
+
+
+run:
+
+  task: video_text_pretrain
+
+  # optimizer
+  lr_sched: "linear_warmup_cosine_lr"
+  init_lr: 5e-5
+  min_lr: 5e-6
+  warmup_lr: 5e-7
+  weight_decay: 0.01
+
+  max_epoch: 60
+  iters_per_epoch: 5000
+  warmup_steps: 5000
+
+  batch_size_train: 3
+  batch_size_eval:  3
+  accum_grad_iters: 8  # effective batch = 3 * 8 = 24
+
+  seed: 42
+  num_workers: 4
+
+  amp: True
+  resume_ckpt_path: null
+
+  evaluate: False
+  train_splits: ["train"]
+
+  device: "cuda"
+  world_size: 1
+  dist_url: "env://"
+  distributed: False
+
+  output_dir: "output_qwen3_0.6B_wclip_OT"
+
+
+inference:
+
+  task: video_text_pretrain
+
+  vis_processor:
+    train:
+      name: "alpro_video_eval"
+      n_frms: 8
+      image_size: 224
+  text_processor:
+    train:
+      name: "blip_caption"
+  img_processor:
+    train:
+      name: "blip2_image_eval"
+      image_size: 224
+
+  face_or_frame: 'xxx'
+
+  base_root: 'output_qwen3_0.6B_wclip_OT1/results'
+
+  ckpt_root: xxx
+  ckpt_name: xxx
+  test_epoch: xxx
+  test_epochs: xxx-xxx
+  skip_epoch: 1
+  gpu: 0

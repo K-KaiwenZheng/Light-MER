@@ -1,0 +1,134 @@
+## V4: fast_lr — 快速收敛 + 保守 OT（纯 OT，无 KL）
+## Changes vs baseline: init_lr 5e-5→1e-4, min_lr 5e-6→1e-5, warmup_lr 5e-7→1e-6,
+##   warmup_steps 5000→8000, ot_weight 1→0.5, ot_ramp_steps 5000→10000
+
+model:
+  arch: affectgpt
+  model_type: pretrain_vicuna
+
+  frozen_video_proj: False
+  frozen_video_Qformer: False
+  frozen_audio_Qformer: False
+  frozen_audio_proj: False
+  frozen_multi_Qformer: False
+  frozen_multi_llama_proj: False
+  frozen_llm: False
+
+  multi_fusion_type: attention
+  video_fusion_type: attention
+  audio_fusion_type: attention
+  image_fusion_type: mean
+
+  ckpt:   ""
+  ckpt_2: ""
+
+  llama_model: "Qwen3_0.6B"
+  acoustic_encoder: "HUBERT_BASE"
+  visual_encoder: "CLIP_VIT_BASE"
+
+  teacher:
+    llama_model: "Qwen3"
+    visual_encoder: "CLIP_VIT_LARGE"
+    acoustic_encoder: "HUBERT_LARGE"
+    ckpt: "/users/2780718z/sharedscratch/Year_3/OT/AffectGPT-master/AffectGPT/output/qwen3_emercoarse_highlevelfilter4_outputhybird_bestsetup_bestfusion_lz/qwen3_emercoarse_highlevelfilter4_outputhybird_bestsetup_bestfusion_lz_20260209171/checkpoint_000060_loss_0.609.pth"
+
+    ot_weight: 0.5             # CHANGED: 1.0 → 0.5 (conservative OT, let CE lead)
+    ot_epsilon: 0.1
+    ot_common_dim: 256
+    ot_num_iters: 20
+    ot_ramp_steps: 10000       # CHANGED: 5000 → 10000
+
+    kl_weight: 0.0             # NO KL (OT+KL experimentally shown to hurt)
+    kl_temperature: 2.0
+
+  num_audio_query_token: 1
+  num_video_query_token: 1
+  num_multi_query_token: 1
+  num_image_query_token: 1
+
+  max_length: 1024
+
+  vis_processor:
+    train:
+      name: "alpro_video_train"
+      n_frms: 8
+      image_size: 224
+  text_processor:
+    train:
+      name: "blip_caption"
+  img_processor:
+    train:
+      name: "blip2_image_train"
+      image_size: 224
+
+
+datasets:
+
+  mercaptionplus:
+    data_type: video
+    face_or_frame: 'multiface_audio_face_text'
+    label_type: 'hybird'
+
+
+run:
+
+  task: video_text_pretrain
+
+  lr_sched: "linear_warmup_cosine_lr"
+  init_lr: 1e-4               # CHANGED: 5e-5 → 1e-4 (higher LR for LoRA)
+  min_lr: 1e-5                # CHANGED: 5e-6 → 1e-5
+  warmup_lr: 1e-6             # CHANGED: 5e-7 → 1e-6
+  weight_decay: 0.01
+
+  max_epoch: 60
+  iters_per_epoch: 5000
+  warmup_steps: 8000          # CHANGED: 5000 → 8000 (longer warmup for higher LR)
+
+  batch_size_train: 3
+  batch_size_eval:  3
+  accum_grad_iters: 8
+
+  seed: 42
+  num_workers: 4
+
+  amp: True
+  resume_ckpt_path: null
+
+  evaluate: False
+  train_splits: ["train"]
+
+  device: "cuda"
+  world_size: 1
+  dist_url: "env://"
+  distributed: False
+
+  output_dir: "output_qwen3_0.6B_wclip_OT_v4_fast_lr"
+
+
+inference:
+
+  task: video_text_pretrain
+
+  vis_processor:
+    train:
+      name: "alpro_video_eval"
+      n_frms: 8
+      image_size: 224
+  text_processor:
+    train:
+      name: "blip_caption"
+  img_processor:
+    train:
+      name: "blip2_image_eval"
+      image_size: 224
+
+  face_or_frame: 'xxx'
+
+  base_root: 'output_qwen3_0.6B_wclip_OT_v4_fast_lr/results'
+
+  ckpt_root: xxx
+  ckpt_name: xxx
+  test_epoch: xxx
+  test_epochs: xxx-xxx
+  skip_epoch: 1
+  gpu: 0

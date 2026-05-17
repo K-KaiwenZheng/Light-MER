@@ -1,0 +1,146 @@
+## GRPO: Format-Controlled Output Training
+## Initializes from OT-distilled checkpoint and trains the model
+## to consistently output: "The character's emotional state is X, Y, Z."
+
+model:
+  arch: affectgpt
+  model_type: pretrain_vicuna
+
+  frozen_video_proj: False
+  frozen_video_Qformer: False
+  frozen_audio_Qformer: False
+  frozen_audio_proj: False
+  frozen_multi_Qformer: False
+  frozen_multi_llama_proj: False
+  frozen_llm: False
+
+  multi_fusion_type: attention
+  video_fusion_type: attention
+  audio_fusion_type: attention
+  image_fusion_type: mean
+
+  ckpt:   ""
+  ckpt_2: ""
+
+  # Student model
+  llama_model: "Qwen3_0.6B"
+  acoustic_encoder: "HUBERT_BASE"
+  visual_encoder: "CLIP_VIT_BASE"
+
+  num_audio_query_token: 1
+  num_video_query_token: 1
+  num_multi_query_token: 1
+  num_image_query_token: 1
+
+  max_length: 1024
+
+  vis_processor:
+    train:
+      name: "alpro_video_train"
+      n_frms: 8
+      image_size: 224
+  text_processor:
+    train:
+      name: "blip_caption"
+  img_processor:
+    train:
+      name: "blip2_image_train"
+      image_size: 224
+
+  # ====== GRPO Configuration ======
+  grpo:
+    # --- Checkpoint to start from (OT-distilled model) ---
+    ckpt: "/users/2780718z/sharedscratch/Year_3/OT/AffectGPT-master_0.6B_wclip_OT/AffectGPT/output_qwen3_0.6B_wclip_OT/PUT_YOUR_CHECKPOINT_HERE.pth"
+
+    # --- Generation parameters ---
+    num_completions: 4       # K: number of completions per input
+    max_new_tokens: 300      # must be large enough to expose reasoning behavior
+    gen_temperature: 1.0     # sampling temperature for diversity
+    gen_top_p: 0.9           # nucleus sampling threshold
+
+    # --- GRPO optimization parameters ---
+    clip_eps: 0.2            # PPO-style clipping epsilon
+    kl_coef: 0.01            # KL penalty coefficient (prevents diverging from reference)
+    lr: 1e-5                 # learning rate (small, for RL fine-tuning)
+    num_epochs: 3            # number of passes over training data
+    max_steps: 5000          # max optimization steps (stops early if reached)
+    grad_accum: 4            # gradient accumulation steps
+
+    # --- Reward function weights (scoring RAW output before ### truncation) ---
+    w_format: 3.0            # weight for exact format match on raw output
+    w_brevity: 1.5           # weight for short raw output (~10-15 words ideal)
+    w_no_reason: 2.0         # weight for no-reasoning penalty on raw output
+    w_clean_stop: 1.5        # weight for single-sentence raw output (clean stop)
+    w_emotion: 1.0           # weight for emotion accuracy reward (F1 vs GT)
+
+    # --- Logging & saving ---
+    log_interval: 10         # log every N steps
+    save_interval: 500       # save checkpoint every N steps
+
+
+datasets:
+  mercaptionplus:
+    data_type: video
+    face_or_frame: 'multiface_audio_face_text'
+    label_type: 'ovlabel'
+
+
+run:
+  task: video_text_pretrain
+
+  lr_sched: "linear_warmup_cosine_lr"
+  init_lr: 1e-5
+  min_lr: 1e-6
+  warmup_lr: 1e-7
+  weight_decay: 0.01
+
+  max_epoch: 3
+  iters_per_epoch: 5000
+  warmup_steps: 100
+
+  batch_size_train: 1
+  batch_size_eval: 1
+  accum_grad_iters: 1
+
+  seed: 42
+  num_workers: 4
+
+  amp: True
+  resume_ckpt_path: null
+
+  evaluate: False
+  train_splits: ["train"]
+
+  device: "cuda"
+  world_size: 1
+  dist_url: "env://"
+  distributed: False
+
+  output_dir: "output_grpo"
+
+
+inference:
+  task: video_text_pretrain
+
+  vis_processor:
+    train:
+      name: "alpro_video_eval"
+      n_frms: 8
+      image_size: 224
+  text_processor:
+    train:
+      name: "blip_caption"
+  img_processor:
+    train:
+      name: "blip2_image_eval"
+      image_size: 224
+
+  face_or_frame: 'xxx'
+  base_root: 'output_grpo/results'
+
+  ckpt_root: xxx
+  ckpt_name: xxx
+  test_epoch: xxx
+  test_epochs: xxx-xxx
+  skip_epoch: 1
+  gpu: 0
