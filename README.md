@@ -12,7 +12,7 @@ Light-MER is a multimodal large language model (MLLM) for emotion understanding 
 
 ## Architecture
 
-![Architecture](arch.png)
+![Architecture](toolkit/arch.png)
 
 ## Project Structure
 
