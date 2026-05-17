@@ -12,23 +12,7 @@ Light-MER is a multimodal large language model (MLLM) for emotion understanding 
 
 ## Architecture
 
-```
-                    ┌─────────────────────────────────────┐
-                    │         Light-MER (Student)         │
-                    │                                     │
-  Video Frames ──► │  CLIP-ViT ──► Q-Former ──┐         │
-                    │                          ├──► Qwen3-0.6B ──► Caption
-  Audio Wav ────► │  HuBERT ────► Q-Former ──┘         │
-                    │                                     │
-                    └─────────────────────────────────────┘
-                              ▲
-                              │ SWD Distillation (OT alignment on hidden states)
-                              ▼
-                    ┌─────────────────────────────────────┐
-                    │         Teacher (Frozen)            │
-                    │  CLIP-ViT-L + HuBERT-L + Qwen3-8B  │
-                    └─────────────────────────────────────┘
-```
+![Architecture](arch.png)
 
 ## Project Structure
 
