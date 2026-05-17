@@ -1,10 +1,10 @@
-# AffectGPT: Multimodal Emotion Understanding with Knowledge Distillation
+# Light-MER: Multimodal Emotion Understanding with Knowledge Distillation
 
 > **Note**: This repository accompanies a paper currently under peer review. Certain core algorithmic implementations (Optimal Transport distillation loss, GRPO reward functions, and teacher model configuration) have been withheld to protect intellectual property prior to publication. The full implementation will be released upon paper acceptance.
 
 ## Overview
 
-AffectGPT is a multimodal large language model (MLLM) for emotion understanding from video, audio, and text. This extended version introduces:
+Light-MER is a multimodal large language model (MLLM) for emotion understanding from video, audio, and text. This extended version introduces:
 
 - **Sliced Wasserstein Distance (SWD) Distillation**: Compresses an 8B-parameter teacher into a <1B student model with minimal performance loss, using optimal transport on hidden-state representations.
 - **GRPO Fine-tuning**: Applies Group Relative Policy Optimization to improve output format consistency and emotion label accuracy without supervised labels.
@@ -14,7 +14,7 @@ AffectGPT is a multimodal large language model (MLLM) for emotion understanding 
 
 ```
                     ┌─────────────────────────────────────┐
-                    │         AffectGPT (Student)         │
+                    │         Light-MER (Student)         │
                     │                                     │
   Video Frames ──► │  CLIP-ViT ──► Q-Former ──┐         │
                     │                          ├──► Qwen3-0.6B ──► Caption
@@ -33,7 +33,7 @@ AffectGPT is a multimodal large language model (MLLM) for emotion understanding 
 ## Project Structure
 
 ```
-AffectGPT/
+Light-MER/
 ├── train.py                        # Training entry point (with OT distillation)
 ├── evaluation.py                   # Full evaluation on MER-UniBench
 ├── inference_sample.py             # Single-video inference
@@ -132,10 +132,6 @@ The following components are **redacted** in this repository due to the paper be
 | `grpo_reward.py` | All reward function bodies | Novel reward engineering |
 
 The full implementation will be open-sourced upon publication. Function signatures, docstrings, and architectural design are preserved to demonstrate the engineering approach.
-
-## Acknowledgement
-
-Built upon [AffectGPT](https://arxiv.org/pdf/2501.16566) (ICML 2025 Oral), [Video-LLaMA](https://github.com/DAMO-NLP-SG/Video-LLaMA), and [Qwen](https://github.com/QwenLM/Qwen).
 
 ## License
 
